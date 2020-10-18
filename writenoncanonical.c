@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 
 #define BAUDRATE B38400
@@ -16,7 +17,44 @@
 #define FALSE 0
 #define TRUE 1
 
+#define FLAG 0x7e
+#define A 0x03
+#define SET 0x03
+#define BCC 0
+
+#define START 0
+#define FLAGRCV 1
+#define ARCV 2
+#define CRCV 3
+#define BCCOK 4
+#define STOP_STATE 5
+
+
 volatile int STOP=FALSE;
+
+typedef struct machine_state
+{ 
+    bool value;
+    char name[10];
+}state;
+
+state states[6];
+
+state determinestate(char byte, int state)
+{
+  if(state==BCCOK && byte == FLAG )
+    return states[STOP_STATE];
+  if(byte == FLAG ) 
+    return states[FLAGRCV];
+  if(byte == A && state==FLAGRCV)
+    return states[ARCV];
+  if(byte == SET && state==ARCV)
+  return states[CRCV];
+  if(state==CRCV && byte==A^SET)
+      return states[BCCOK];
+  return states[START];
+}
+
 
 int main(int argc, char** argv)
 {
@@ -71,13 +109,34 @@ int main(int argc, char** argv)
     printf("New termios structure set\n");
 
     printf("Mensagem: ");
-    fgets(buf, 256, stdin);
+    //fgets(buf, 256, stdin);
+    buf[0]=FLAG;
+    buf[1]=A;
+    buf[2]=SET;
+    buf[3]=A^SET;
+    buf[4]=FLAG;
+    
+  states[0].value=true;
+  strcpy(states[0].name,"START");
 
-    int message_size;
-    message_size = strlen(buf);
-    buf[message_size]=0;
+  states[1].value=false;
+  strcpy(states[1].name,"FLAGRCV");
 
-    res = write(fd, buf, message_size);
+  states[2].value=false;
+  strcpy(states[2].name,"ARCV");
+
+  states[3].value=false;
+  strcpy(states[3].name,"CRCV");
+
+  states[4].value=false;
+  strcpy(states[4].name,"BCCOK");
+
+  states[5].value=false;
+  strcpy(states[5].name,"STOP");
+
+  int current_state = START;
+
+    res = write(fd, buf, 5);
     printf("%d bytes written\n", res);
 
      /* loop for input */
@@ -88,11 +147,8 @@ int main(int argc, char** argv)
         
         printf("nº bytes lido: %d - ", res);
         printf("content: %c\n", buf[0]);
-        if(buf[0]=='\n')
-        {
-          buf[0]=0;
-        break; 
-        }
+        if(strcmp(determinestate(buf[0], current_state).name, "STOP")==0)
+        STOP==TRUE;
       }
     
 
