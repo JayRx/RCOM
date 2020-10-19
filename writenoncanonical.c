@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <signal.h>
+
+#include "state_machine.h"
 
 
 #define BAUDRATE B38400
@@ -17,51 +20,77 @@
 #define FALSE 0
 #define TRUE 1
 
-#define FLAG 0x7e
-#define A 0x03
-#define SET 0x03
-#define BCC 0
-
-#define START 0
-#define FLAGRCV 1
-#define ARCV 2
-#define CRCV 3
-#define BCCOK 4
-#define STOP_STATE 5
-
-
 volatile int STOP=FALSE;
 
-typedef struct machine_state
-{ 
-    bool value;
-    char name[10];
-}state;
+int conta=0;
+char message[255];
+int i = 0;
 
-state states[6];
+int fd, res;
+char buf[255];
 
-state determinestate(char byte, int state)
-{
-  if(state==BCCOK && byte == FLAG )
-    return states[STOP_STATE];
-  if(byte == FLAG ) 
-    return states[FLAGRCV];
-  if(byte == A && state==FLAGRCV)
-    return states[ARCV];
-  if(byte == SET && state==ARCV)
-  return states[CRCV];
-  if(state==CRCV && byte==A^SET)
-      return states[BCCOK];
-  return states[START];
+enum states_UA current_state_UA = START_UA;
+
+void write_SET();
+
+void atende() {
+
+	printf("ALARME #%d\n", conta);
+
+  if(conta == 3) {
+    exit(1);
+  }
+
+	conta++;
+
+  if(current_state_UA != STOP_UA)
+    write_SET();
+
 }
 
+void write_SET() {
+  printf("----- Writing SET -----\n");
 
-int main(int argc, char** argv)
-{
-    int fd,c, res;
+  buf[0]=FLAG_WR;
+  buf[1]=A_WR;
+  buf[2]=SET;
+  buf[3]=BCC_WR;
+  buf[4]=FLAG_WR;
+
+  res = write(fd, buf, 5);
+  printf("%d bytes written\n\n", res);
+
+  alarm(3);
+}
+
+void read_UA() {
+  printf("----- Reading UA -----\n");
+
+  /* loop for input */
+  while (STOP==FALSE) {       /* loop for input */
+    res = read(fd,buf,1);   /* returns after 1 char has been input */
+    if (res == -1)
+      break;
+
+    printf("nº bytes lido: %d - ", res);
+    printf("content: 0x%x\n", buf[0]);
+
+    current_state_UA = determineState_UA(buf[0], current_state_UA);
+
+    if(current_state_UA == STOP_UA)
+      STOP=TRUE;
+
+    printState_UA(current_state_UA);
+    message[i] = buf[0];
+    i++;
+  }
+  printf("\n");
+}
+
+int main(int argc, char** argv) {
+    int c;
     struct termios oldtio,newtio;
-    char buf[255];
-    int i, sum = 0, speed = 0;
+    int sum = 0, speed = 0;
 
     if ( (argc < 2) ||
   	     ((strcmp("/dev/ttyS10", argv[1])!=0) &&
@@ -106,56 +135,18 @@ int main(int argc, char** argv)
       exit(-1);
     }
 
-    printf("New termios structure set\n");
+    printf("New termios structure set\n\n");
 
-    printf("Mensagem: ");
-    //fgets(buf, 256, stdin);
-    buf[0]=FLAG;
-    buf[1]=A;
-    buf[2]=SET;
-    buf[3]=A^SET;
-    buf[4]=FLAG;
-    
-  states[0].value=true;
-  strcpy(states[0].name,"START");
+    (void) signal(SIGALRM, atende);
 
-  states[1].value=false;
-  strcpy(states[1].name,"FLAGRCV");
+    write_SET();
 
-  states[2].value=false;
-  strcpy(states[2].name,"ARCV");
+    read_UA();
 
-  states[3].value=false;
-  strcpy(states[3].name,"CRCV");
-
-  states[4].value=false;
-  strcpy(states[4].name,"BCCOK");
-
-  states[5].value=false;
-  strcpy(states[5].name,"STOP");
-
-  int current_state = START;
-
-    res = write(fd, buf, 5);
-    printf("%d bytes written\n", res);
-
-     /* loop for input */
-      while (STOP==FALSE) {       /* loop for input */
-        res = read(fd,buf,1);   /* returns after 1 char has been input */
-        if (res == -1)
-          break;
-        
-        printf("nº bytes lido: %d - ", res);
-        printf("content: %c\n", buf[0]);
-        if(strcmp(determinestate(buf[0], current_state).name, "STOP")==0)
-        STOP==TRUE;
-      }
-    
-
-  /*
-    O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
-    o indicado no guião
-  */
+    /*
+      O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
+      o indicado no guião
+    */
 
     if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
       perror("tcsetattr");
