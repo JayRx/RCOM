@@ -8,11 +8,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <signal.h>
 
 #include "state_machine.h"
-
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -30,62 +28,6 @@ int fd, res;
 char buf[255];
 
 enum states_UA current_state_UA = START_UA;
-
-void write_SET();
-
-void atende() {
-
-	printf("ALARME #%d\n", conta);
-
-  if(conta == 3) {
-    exit(1);
-  }
-
-	conta++;
-
-  if(current_state_UA != STOP_UA)
-    write_SET();
-
-}
-
-void write_SET() {
-  printf("----- Writing SET -----\n");
-
-  buf[0]=FLAG_WR;
-  buf[1]=A_WR;
-  buf[2]=SET;
-  buf[3]=BCC_WR;
-  buf[4]=FLAG_WR;
-
-  res = write(fd, buf, 5);
-  printf("%d bytes written\n\n", res);
-
-  alarm(3);
-}
-
-void read_UA() {
-  printf("----- Reading UA -----\n");
-
-  /* loop for input */
-  while (STOP==FALSE) {       /* loop for input */
-    res = read(fd,buf,1);   /* returns after 1 char has been input */
-    if (res == -1)
-      break;
-
-    printf("nº bytes lido: %d - ", res);
-    printf("content: 0x%x\n", buf[0]);
-
-    current_state_UA = determineState_UA(buf[0], current_state_UA);
-
-    if(current_state_UA == STOP_UA)
-      STOP=TRUE;
-
-    printState_UA(current_state_UA);
-    message[i] = buf[0];
-    i++;
-  }
-  printf("\n");
-}
 
 int main(int argc, char** argv) {
     int c;
@@ -136,12 +78,6 @@ int main(int argc, char** argv) {
     }
 
     printf("New termios structure set\n\n");
-
-    (void) signal(SIGALRM, atende);
-
-    write_SET();
-
-    read_UA();
 
     /*
       O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
