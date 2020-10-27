@@ -19,8 +19,16 @@ int llread(int fd, char *buffer); // Return array size (number of chars read) if
 
 int llclose(int fd); // Return a positive number if success or a negative number if error
 
-void write_SET();
+void write_SET(int fd);
 
-void read_UA();
+void read_SET(int fd);
+
+void write_UA(int fd);
+
+void read_UA(int fd);
+
+void write_DISC(int fd);
+
+void read_DISC(int fd);
 
 void atende();

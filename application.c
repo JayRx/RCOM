@@ -19,12 +19,11 @@ struct linkLayer linkLayer;
 
 int main(int argc, char** argv) {
 
-    if ( (argc < 2) ||
-  	     ((strcmp("/dev/ttyS10", argv[1])!=0) &&
-  	      (strcmp("/dev/ttyS11", argv[1])!=0) )) {
-      printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
-      exit(1);
-    }
+    int status;
+
+	checkUsage(argc, argv, &status);
+	// Set ApplicationLayer struct
+	applicationLayer.status = status;
 
     // Set LinkLayer struct
     strcpy(linkLayer.port, argv[1]);
@@ -33,9 +32,38 @@ int main(int argc, char** argv) {
     linkLayer.timeout = TIMEOUT;
     linkLayer.numTransmissions = NUMTRANSMISSIONS;
 
-    llopen(linkLayer.port, TRANSMITTER);
+    llopen(linkLayer.port, applicationLayer.status);
 
     llclose(applicationLayer.fileDescriptor);
 
     return 0;
+}
+
+int checkUsage(int argc, char** argv, int* status)  {
+	if (argc < 3) {
+		printUsage();
+		exit(1);
+	}
+
+	if ((strcmp("/dev/ttyS10", argv[1])!=0) &&
+  	    (strcmp("/dev/ttyS11", argv[1])!=0) &&
+		(strcmp("/dev/ttyS0", argv[1]) != 0)) {
+	  	printUsage();
+      	exit(1);
+    }
+
+
+	if (strcmp("writer", argv[2])==0) {
+		*status = TRANSMITTER;	
+	} else if (strcmp("reader", argv[2])==0) {
+		*status = RECEIVER;
+	} else {
+		printUsage();
+		exit(1);	
+	}
+
+}
+
+void printUsage() {
+	printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 writer\n");
 }

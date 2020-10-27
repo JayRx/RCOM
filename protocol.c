@@ -18,6 +18,8 @@ extern struct linkLayer linkLayer;
 
 int conta=0;
 enum states_UA current_state_UA = START_UA;
+enum states_SET current_state_SET = START_SET;
+enum states_SET current_state_DISC = START_DISC;
 struct termios oldtio,newtio;
 char buf[255];
 volatile int STOP=FALSE;
@@ -70,7 +72,6 @@ int llopen(char port[20], int status) {
 
   // Set ApplicationLayer struct
   applicationLayer.fileDescriptor = fd;
-  applicationLayer.status = TRANSMITTER;
 
   /*
     O ciclo FOR e as instruções seguintes devem ser alterados de modo a respeitar
@@ -83,6 +84,10 @@ int llopen(char port[20], int status) {
     write_SET(fd);
 
     read_UA(fd);
+  } else if (status == RECEIVER) {
+	read_SET(fd);
+
+	write_UA(fd);	
   }
 
   return -1;
@@ -99,6 +104,12 @@ int llread(int fd, char *buffer) {
 }
 
 int llclose(int fd) {
+
+  if (applicationLayer.status == TRANSMITTER) {
+	
+  } else if (applicationLayer.status == RECEIVER) {
+	
+  }
 
   if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
     perror("tcsetattr");
@@ -129,16 +140,55 @@ void write_SET(int fd) {
   printf("----- Writing SET -----\n");
   int res;
 
-  buf[0]=FLAG_WR;
-  buf[1]=A_WR;
+  buf[0]=FLAG_SET;
+  buf[1]=A_SET;
   buf[2]=SET;
-  buf[3]=BCC_WR;
-  buf[4]=FLAG_WR;
+  buf[3]=BCC_SET;
+  buf[4]=FLAG_SET;
 
   res = write(fd, buf, 5);
   printf("%d bytes written\n\n", res);
 
   alarm(3);
+}
+
+void read_SET(int fd) {
+  printf("----- Reading SET -----\n");
+  int res;
+
+  while (STOP==FALSE) {       /* loop for input */
+    res = read(fd,buf,1);   /* returns after 1 char has been input */
+    if (res == -1)
+      break;
+
+    printf("nº bytes lido: %d - ", res);
+    printf("content: 0x%x\n", buf[0]);
+
+    current_state_SET = determineState_SET(buf[0], current_state_SET);
+
+    if(current_state_SET == STOP_SET)
+      STOP=TRUE;
+
+    printState_SET(current_state_SET);
+    message[i] = buf[0];
+    i++;
+  }
+  printf("\n");
+}
+
+void write_UA(int fd) {
+  printf("----- Writing UA -----\n");
+  int res;
+
+  buf[0]=FLAG_UA;
+  buf[1]=A_UA;
+  buf[2]=UA;
+  buf[3]=BCC_UA;
+  buf[4]=FLAG_UA;
+
+  res = write(fd, buf, 5);
+
+  printf("%d bytes written\n\n", res);
 }
 
 void read_UA(int fd) {
@@ -160,6 +210,46 @@ void read_UA(int fd) {
       STOP=TRUE;
 
     printState_UA(current_state_UA);
+    message[i] = buf[0];
+    i++;
+  }
+  printf("\n");
+}
+
+void write_DISC(int fd) {
+  printf("----- Writing DISC -----\n");
+  int res;
+
+  buf[0]=FLAG_DISC;
+  buf[1]=A_DISC;
+  buf[2]=DISC;
+  buf[3]=BCC_DISC;
+  buf[4]=FLAG_DISC;
+
+  res = write(fd, buf, 5);
+
+  printf("%d bytes written\n\n", res);
+}
+
+void read_DISC(int fd) {
+  printf("----- Reading DISC -----\n");
+  int res;
+
+  /* loop for input */
+  while (STOP==FALSE) {       /* loop for input */
+    res = read(fd,buf,1);   /* returns after 1 char has been input */
+    if (res == -1)
+      break;
+
+    printf("nº bytes lido: %d - ", res);
+    printf("content: 0x%x\n", buf[0]);
+
+    current_state_DISC = determineState_DISC(buf[0], current_state_DISC);
+
+    if(current_state_DISC == STOP_DISC)
+      STOP=TRUE;
+
+    printState_UA(current_state_DISC);
     message[i] = buf[0];
     i++;
   }

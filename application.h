@@ -10,3 +10,7 @@ struct applicationLayer {
   int fileDescriptor; // Descriptor of serial port
   int status; // TRANSMITTER | RECEIVER
 };
+
+void printUsage();
+
+int checkUsage(int argc, char** argv, int* status);
