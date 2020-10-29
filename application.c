@@ -19,24 +19,24 @@ struct linkLayer linkLayer;
 
 int main(int argc, char** argv) {
 
-    int status;
+  int status;
 
 	checkUsage(argc, argv, &status);
 	// Set ApplicationLayer struct
 	applicationLayer.status = status;
 
-    // Set LinkLayer struct
-    strcpy(linkLayer.port, argv[1]);
-    linkLayer.baudRate = BAUDRATE;
-    linkLayer.sequenceNumber = 0;
-    linkLayer.timeout = TIMEOUT;
-    linkLayer.numTransmissions = NUMTRANSMISSIONS;
+  // Set LinkLayer struct
+  strcpy(linkLayer.port, argv[1]);
+  linkLayer.baudRate = BAUDRATE;
+  linkLayer.sequenceNumber = 0;
+  linkLayer.timeout = TIMEOUT;
+  linkLayer.numTransmissions = NUMTRANSMISSIONS;
 
-    llopen(linkLayer.port, applicationLayer.status);
+  llopen(linkLayer.port, applicationLayer.status);
 
-    llclose(applicationLayer.fileDescriptor);
+  llclose(applicationLayer.fileDescriptor);
 
-    return 0;
+  return 0;
 }
 
 int checkUsage(int argc, char** argv, int* status)  {
@@ -54,14 +54,15 @@ int checkUsage(int argc, char** argv, int* status)  {
 
 
 	if (strcmp("writer", argv[2])==0) {
-		*status = TRANSMITTER;	
+		*status = TRANSMITTER;
 	} else if (strcmp("reader", argv[2])==0) {
 		*status = RECEIVER;
 	} else {
 		printUsage();
-		exit(1);	
+		exit(1);
 	}
 
+  return 0;
 }
 
 void printUsage() {

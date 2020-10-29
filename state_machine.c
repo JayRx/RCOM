@@ -76,7 +76,7 @@ enum states_DISC determineState_DISC(char byte, enum states_DISC s) {
     if (byte == A_DISC)
       return A_RCV_DISC;
     else if (byte == FLAG_DISC)
-      return FLAG_RCV_UA;
+      return FLAG_RCV_DISC;
   }
 
   if (s == A_RCV_DISC) {

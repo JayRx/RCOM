@@ -16,10 +16,11 @@
 extern struct applicationLayer applicationLayer;
 extern struct linkLayer linkLayer;
 
-int conta=0;
+int alarm_no=0;
 enum states_UA current_state_UA = START_UA;
 enum states_SET current_state_SET = START_SET;
-enum states_SET current_state_DISC = START_DISC;
+enum states_DISC current_state_DISC = START_DISC;
+enum alarm_IDs current_alarm_ID = ALARM_SET;
 struct termios oldtio,newtio;
 char buf[255];
 volatile int STOP=FALSE;
@@ -78,16 +79,16 @@ int llopen(char port[20], int status) {
     o indicado no guião
   */
 
+  (void) signal(SIGALRM, atende);
+
   if (status == TRANSMITTER) {
-    (void) signal(SIGALRM, atende);
+    current_alarm_ID = ALARM_SET;
 
     write_SET(fd);
-
     read_UA(fd);
   } else if (status == RECEIVER) {
-	read_SET(fd);
-
-	write_UA(fd);	
+  	read_SET(fd);
+    write_UA(fd);
   }
 
   return -1;
@@ -106,9 +107,14 @@ int llread(int fd, char *buffer) {
 int llclose(int fd) {
 
   if (applicationLayer.status == TRANSMITTER) {
-	
+    current_alarm_ID = ALARM_DISC;
+    write_DISC(fd);
+    read_DISC(fd);
+    write_UA(fd);
   } else if (applicationLayer.status == RECEIVER) {
-	
+    read_DISC(fd);
+    write_DISC(fd);
+    read_UA(fd);
   }
 
   if ( tcsetattr(fd,TCSANOW,&oldtio) == -1) {
@@ -123,17 +129,27 @@ int llclose(int fd) {
 
 void atende() {
 
-	printf("ALARME #%d\n", conta);
+	printf("ALARME #%d\n", alarm_no);
 
-  if(conta == 3) {
+  if(alarm_no == 3) {
     exit(1);
   }
 
-	conta++;
+	alarm_no++;
 
-  if(current_state_UA != STOP_UA)
-    write_SET(applicationLayer.fileDescriptor);
-
+  if (current_alarm_ID == ALARM_SET) {
+    if (current_state_UA != STOP_UA) {
+      write_SET(applicationLayer.fileDescriptor);
+    } else {
+      alarm_no = 0;
+    }
+  } else if (current_alarm_ID == ALARM_DISC) {
+    if (current_state_DISC != STOP_DISC) {
+      write_DISC(applicationLayer.fileDescriptor);
+    } else {
+      alarm_no = 0;
+    }
+  }
 }
 
 void write_SET(int fd) {
@@ -153,6 +169,8 @@ void write_SET(int fd) {
 }
 
 void read_SET(int fd) {
+  reset_state_machines();
+
   printf("----- Reading SET -----\n");
   int res;
 
@@ -192,6 +210,8 @@ void write_UA(int fd) {
 }
 
 void read_UA(int fd) {
+  reset_state_machines();
+
   printf("----- Reading UA -----\n");
   int res;
 
@@ -229,9 +249,13 @@ void write_DISC(int fd) {
   res = write(fd, buf, 5);
 
   printf("%d bytes written\n\n", res);
+
+  alarm(3);
 }
 
 void read_DISC(int fd) {
+  reset_state_machines();
+
   printf("----- Reading DISC -----\n");
   int res;
 
@@ -249,9 +273,16 @@ void read_DISC(int fd) {
     if(current_state_DISC == STOP_DISC)
       STOP=TRUE;
 
-    printState_UA(current_state_DISC);
+    printState_DISC(current_state_DISC);
     message[i] = buf[0];
     i++;
   }
   printf("\n");
+}
+
+void reset_state_machines() {
+  STOP = FALSE;
+  current_state_SET = START_SET;
+  current_state_UA = START_UA;
+  current_state_DISC = START_DISC;
 }

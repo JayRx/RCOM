@@ -11,6 +11,11 @@ struct linkLayer {
   char frame[MAX_SIZE]; // Trama
 };
 
+enum alarm_IDs {
+  ALARM_SET,
+  ALARM_DISC
+} alarm_ID;
+
 int llopen(char port[20], int status); // Return id of data connection if success or a negative number if error
 
 int llwrite(int fd, char *buffer, int length); // Return array size (number of chars written) if success or a negative number if error
@@ -32,3 +37,5 @@ void write_DISC(int fd);
 void read_DISC(int fd);
 
 void atende();
+
+void reset_state_machines();
