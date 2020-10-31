@@ -13,7 +13,8 @@ struct linkLayer {
 
 enum alarm_IDs {
   ALARM_SET,
-  ALARM_DISC
+  ALARM_DISC,
+  ALARM_I
 } alarm_ID;
 
 int llopen(char port[20], int status); // Return id of data connection if success or a negative number if error
@@ -28,11 +29,25 @@ void write_SET(int fd);
 
 void read_SET(int fd);
 
-void write_UA(int fd);
+void write_UA(int fd, int status);
 
 void read_UA(int fd);
 
-void write_DISC(int fd);
+void write_I(int fd, int id, char package_message[5]);
+
+char* read_I(int fd);
+
+void write_RR(int fd);
+
+int read_RR_REJ(int fd);
+
+//void read_RR(int fd);
+
+void write_REJ(int fd);
+
+//void read_REJ(int fd);
+
+void write_DISC(int fd, int status);
 
 void read_DISC(int fd);
 

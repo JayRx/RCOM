@@ -34,6 +34,16 @@ int main(int argc, char** argv) {
 
   llopen(linkLayer.port, applicationLayer.status);
 
+  char message[5];
+
+  for (int i = 0; i < 10; i++)
+    message[i] = 0;
+
+  if (applicationLayer.status == TRANSMITTER)
+    llwrite(applicationLayer.fileDescriptor, message, 10);
+  else if (applicationLayer.status == RECEIVER)
+    llread(applicationLayer.fileDescriptor, message);
+
   llclose(applicationLayer.fileDescriptor);
 
   return 0;
