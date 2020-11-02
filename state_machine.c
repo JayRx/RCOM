@@ -75,7 +75,7 @@ enum states_I determineState_I(unsigned char byte, enum states_I s) {
   if (s == FLAG_RCV_I) {
     if (byte == A_CA)
       return A_RCV_I;
-    else if (byte == FLAG_RCV_I)
+    else if (byte == FLAG_I)
       return FLAG_RCV_I;
   }
 
@@ -99,8 +99,8 @@ enum states_I determineState_I(unsigned char byte, enum states_I s) {
   }
 
   if (s == D_RCV_I) {
-    if (byte == BCC1_I0 || byte == BCC1_I1)
-      return BCC2_OK_I;
+    if (byte == FLAG_I)
+      return STOP_I;
     else
       return D_RCV_I;
   }

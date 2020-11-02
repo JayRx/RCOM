@@ -46,6 +46,10 @@
 #define BCC_DISC_TRANSMITTER (A_CA^DISC) // Campo de Proteção (Cabeçalho) do DISC
 #define BCC_DISC_RECEIVER (A_AC^DISC) // Campo de Proteção (Cabeçalho) do DISC
 
+#define ESCAPE 0x7d
+#define PATTERNFLAG 0x5e
+#define PATTERNESCAPE 0x5d
+
 enum states_SET { // Estados da Maquina de Estados do comando SET
   START_SET,
   FLAG_RCV_SET,
