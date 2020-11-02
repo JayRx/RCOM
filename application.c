@@ -21,9 +21,8 @@ int main(int argc, char** argv) {
 
 	checkUsage(argc, argv, &status);
 
-  setConnection(argv[1], status);
-
-  al.fragmentSize = 4;
+  if (setConnection(argv[1], status) != 0)
+    return -1;
 
   if (al.status == TRANSMITTER) {
     sendData();
@@ -31,23 +30,19 @@ int main(int argc, char** argv) {
     readData();
   }
 
-  llclose(al.fileDescriptor);
+  setDisconnection(argv[1], status);
 
   return 0;
 }
 
 int getFileToRead() {
-  printf("Name of the file to be transmitted: ");
-  al.filename = (char *) malloc(64 * sizeof(char));
-  //scanf("%s", al.filename);
-  strcpy(al.filename, "pinguim.gif");
   if (al.filename == NULL) {
     printf("Error: Null Filename!\n");
     return -1;
   }
 
-  al.fileDescriptorTBT = open(al.filename, O_RDONLY);
-  if (al.fileDescriptorTBT < 0) {
+  al.fileDescriptorTBT = fopen((char*)al.filename, "rb");
+  if (al.fileDescriptorTBT == NULL) {
     perror("Error when opening file");
     return -1;
   }
@@ -61,8 +56,10 @@ int getFileToWrite() {
     return -1;
   }
 
-  al.fileDescriptorTBT = open(al.filename, O_CREAT|O_WRONLY|O_APPEND, S_IWUSR|S_IRUSR);
-  if (al.fileDescriptor < 0) {
+  //al.fileDescriptorTBT = fopen((char*)"pinguim2.gif", "wb+");
+  printf("Filename: %s\n", al.filename);
+  al.fileDescriptorTBT = fopen((char*) al.filename, "wb+");
+  if (al.fileDescriptorTBT == NULL) {
     perror("Error when opening file");
     return -1;
   }
@@ -73,25 +70,35 @@ int getFileToWrite() {
 int sendData() {
   unsigned char* message;
   int package_message_size = 0, seq_number = 0;
+  int sent_size = 0;
 
   message = (unsigned char*) malloc(al.fragmentSize + 1);
 
-  sendControlPackage(START_PACKAGE);
+  printf("\nSending Data...\n");
 
-  while ((package_message_size = read(al.fileDescriptorTBT, message, al.fragmentSize)) > 0) {
+  if(sendControlPackage(START_PACKAGE) == -1) {
+    printf("\nSending Data: Error\n");
+    return -1;
+  }
+
+  while ((package_message_size = fread(message, sizeof(unsigned char), al.fragmentSize, al.fileDescriptorTBT)) > 0) {
     sendDataPackage(message, seq_number, package_message_size);
     seq_number++;
+    sent_size += package_message_size;
+    printProgressBar(sent_size, al.fileSize);
   }
 
   sendControlPackage(END_PACKAGE);
 
-  if (close(al.fileDescriptorTBT) < 0) {
+  if (fclose(al.fileDescriptorTBT) != 0) {
     printf("Error when closing file!\n");
     return -1;
   }
 
   free(al.filename);
   free(message);
+
+  printf("\n");
 
   return 0;
 }
@@ -110,6 +117,8 @@ int sendDataPackage(unsigned char *package_message, unsigned int seq_number, uns
 
   llwrite(al.fileDescriptor, data_package, data_package_size);
 
+  linkLayer.sequenceNumber = !linkLayer.sequenceNumber;
+
   return 0;
 }
 
@@ -117,14 +126,7 @@ int sendControlPackage(unsigned char byte) {
   struct stat file_info;
   int start_package_length;
 
-  if (byte == START_PACKAGE) {
-    if (getFileToRead() < 0) {
-      printf("Error when opening the file!\n");
-      return -1;
-    }
-  }
-
-  if (fstat(al.fileDescriptorTBT, &file_info) < 0) {
+  if (stat((char*)al.filename, &file_info) < 0) {
     perror("Couldn't get information about the target file");
     return -1;
   }
@@ -148,36 +150,38 @@ int sendControlPackage(unsigned char byte) {
 
   llwrite(al.fileDescriptor, start_package, start_package_length);
 
-  printf("Filename: %s\tSize: %ld\n", al.filename, al.fileSize);
+  if (byte == START_PACKAGE)
+    printf("\nFilename: %s\tSize: %ld\n", al.filename, al.fileSize);
 
   return 0;
 }
 
 int readData() {
+  printf("\nReading Data...\n");
   unsigned char* message;
   int counter = 0, length = 0;
+  unsigned int seq_number = 0;
 
   readControlPackage();
 
-  printf("Filename: %s\tSize: %ld\n", al.filename, al.fileSize);
-
   while(counter < al.fileSize) {
-    length = readDataPackage(&message);
+    length = readDataPackage(&message, seq_number);
 
-    if (write(al.fileDescriptorTBT, message, length) <= 0) {
+    if (fwrite(message, sizeof(unsigned char), length, al.fileDescriptorTBT) <= 0) {
       perror("Couldn't write to file");
+    } else {
+      counter += length;
+      seq_number++;
     }
 
-    counter += length;
-
-    printf("Counter: %d\tTotal: %ld\n", counter, al.fileSize);
+    printProgressBar(counter, al.fileSize);
 
     free(message);
   }
 
   readControlPackage();
 
-  if (close(al.fileDescriptorTBT) < 0) {
+  if (fclose(al.fileDescriptorTBT) != 0) {
     printf("Error when closing file!\n");
     return -1;
   }
@@ -185,10 +189,12 @@ int readData() {
   free(al.filename);
   free(al.fileData);
 
+  printf("\n");
+
   return 0;
 }
 
-int readDataPackage(unsigned char** package_message) {
+int readDataPackage(unsigned char** package_message, int seq_number) {
   unsigned char* data_package;
   unsigned char C;
   int N, L1, L2, K;
@@ -211,6 +217,11 @@ int readDataPackage(unsigned char** package_message) {
   memcpy((*package_message), (data_package + 4), K);
 
   free(data_package);
+
+  if (seq_number % 256 != N)
+    return -1;
+
+  linkLayer.sequenceNumber = !linkLayer.sequenceNumber;
 
   return K;
 }
@@ -241,7 +252,7 @@ int readControlPackage() {
     } else if (package_type == T_FILENAME) {
       data_size = (unsigned int) control_package[package_index++];
       al.filename = (char*) malloc(data_size * sizeof(char) + 1);
-      strcpy(al.filename, (char *)&control_package[package_index + 1]);
+      strcpy(al.filename, (char *)&control_package[package_index]);
       getFileToWrite();
     } else {
       printf("Couldn't recognise Control Packet!\n");
@@ -254,19 +265,45 @@ int readControlPackage() {
 }
 
 int setConnection(char* port, int status) {
+  printf("\nConnecting: ");
+
   // Set ApplicationLayer struct
 	al.status = status;
 
   // Set LinkLayer struct
   strcpy(linkLayer.port, port);
-  linkLayer.baudRate = BAUDRATE;
-  linkLayer.sequenceNumber = 0;
+  if (status == TRANSMITTER)
+   linkLayer.sequenceNumber = 0;
+  else
+    linkLayer.sequenceNumber = 1;
   linkLayer.timeout = TIMEOUT;
   linkLayer.numTransmissions = NUMTRANSMISSIONS;
 
-  llopen(linkLayer.port, al.status);
+  if (status == TRANSMITTER)
+    if (getFileToRead() < 0) {
+      printf("Error when opening the file!\n");
+      return -1;
+    }
 
-  return 0;
+  if(llopen(linkLayer.port, al.status) >= 0) {
+    printf("Success!\n");
+    return 0;
+  } else {
+    printf("Error!\n");
+    return -1;
+  }
+}
+
+int setDisconnection(char* port, int status) {
+  printf("\nDisconnecting: ");
+
+  if(llclose(al.fileDescriptor) == 1) {
+    printf("Success!\n\n");
+    return 0;
+  } else {
+    printf("Error!\n\n");
+    return -1;
+  }
 }
 
 int checkUsage(int argc, char** argv, int* status)  {
@@ -285,8 +322,26 @@ int checkUsage(int argc, char** argv, int* status)  {
 
 	if (strcmp("writer", argv[2])==0) {
 		*status = TRANSMITTER;
+    if (argc != 6) {
+  		printUsage();
+  		exit(1);
+  	}
+    if (argv[3] == NULL) {
+      printUsage();
+      exit(1);
+    }
+    al.filename = (char *) malloc(64 * sizeof(char));
+    strcpy(al.filename, argv[3]);
+    al.fragmentSize = atoi(argv[4]);
+    linkLayer.baudRate = intToBaudrate(atoi(argv[5]+1));
 	} else if (strcmp("reader", argv[2])==0) {
 		*status = RECEIVER;
+    if (argc != 5) {
+  		printUsage();
+  		exit(1);
+  	}
+    al.fragmentSize = atoi(argv[3]);
+    linkLayer.baudRate = intToBaudrate(atoi(argv[4]+1));
 	} else {
 		printUsage();
 		exit(1);
@@ -296,5 +351,68 @@ int checkUsage(int argc, char** argv, int* status)  {
 }
 
 void printUsage() {
-	printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1 writer\n");
+	printf("Usage:\trcom SerialPort writer File FragmentSize BaudRate\n\trcom SerialPort reader FragmentSize BaudRate\n\tEx: rcom ttyS0 writer pinguim.gif 16 B38400\n");
+}
+
+void printProgressBar(int current, int total) {
+	float percentage = 100.0 * (float) current / (float) total;
+
+	printf("\r[");
+
+	int i, len = 30;
+	int pos = percentage * len / 100.0;
+
+	for (i = 0; i < len; i++)
+		i <= pos ? printf("■") : printf(" ");
+
+	printf("]  %6.2f%%", percentage);
+
+	fflush(stdout);
+}
+
+int intToBaudrate(int baudrate) {
+	switch (baudrate) {
+	case 0:
+		return B0;
+	case 50:
+		return B50;
+	case 75:
+		return B75;
+	case 110:
+		return B110;
+	case 134:
+		return B134;
+	case 150:
+		return B150;
+	case 200:
+		return B200;
+	case 300:
+		return B300;
+	case 600:
+		return B600;
+	case 1200:
+		return B1200;
+	case 1800:
+		return B1800;
+	case 2400:
+		return B2400;
+	case 4800:
+		return B4800;
+	case 9600:
+		return B9600;
+	case 19200:
+		return B19200;
+	case 38400:
+		return B38400;
+	case 57600:
+		return B57600;
+	case 115200:
+		return B115200;
+	case 230400:
+		return B230400;
+	case 460800:
+		return B460800;
+	default:
+		return -1;
+	}
 }

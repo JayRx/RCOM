@@ -18,12 +18,14 @@ struct applicationLayer {
   int status; // TRANSMITTER | RECEIVER
   char* filename; // Name of the file to be transmitted
   unsigned char* fileData;
-  int fileDescriptorTBT; // Descriptor of the file to be transmitted
+  FILE* fileDescriptorTBT; // Descriptor of the file to be transmitted
   off_t fileSize; // Size of the file to be transmitted
   unsigned int fragmentSize; // Max size of each fragment
 };
 
 int setConnection(char* port, int status);
+
+int setDisconnection(char* port, int status);
 
 int sendData();
 
@@ -33,10 +35,14 @@ int sendControlPackage(unsigned char byte);
 
 int readData();
 
-int readDataPackage(unsigned char** package_message);
+int readDataPackage(unsigned char** package_message, int seq_number);
 
 int readControlPackage();
 
 void printUsage();
 
 int checkUsage(int argc, char** argv, int* status);
+
+void printProgressBar(int current, int total);
+
+int intToBaudrate(int baudrate);

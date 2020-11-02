@@ -70,8 +70,6 @@ int llopen(char port[20], int status) {
     exit(-1);
   }
 
-  printf("New termios structure set\n\n");
-
   // Set ApplicationLayer struct
   al.fileDescriptor = fd;
 
@@ -91,7 +89,7 @@ int llopen(char port[20], int status) {
     write_UA(fd, RECEIVER);
   }
 
-  return -1;
+  return fd;
 }
 
 int llwrite(int fd, unsigned char *buffer, int length) {
@@ -105,25 +103,24 @@ int llwrite(int fd, unsigned char *buffer, int length) {
   write_I(fd, linkLayer.sequenceNumber, buffer, length);
   if(read_RR_REJ(fd))
     write_I(fd, linkLayer.sequenceNumber, buffer, length);
-  linkLayer.sequenceNumber = !linkLayer.sequenceNumber;
 
-  return -1;
+  return 0;
 }
 
 int llread(int fd, unsigned char** buffer) {
   int res;
 
   res = read_I(fd, buffer);
-  linkLayer.sequenceNumber = !linkLayer.sequenceNumber;
 
   if(res > 0)
     write_RR(fd);
+  else
+    write_REJ(fd);
 
   return res;
 }
 
 int llclose(int fd) {
-
   if (al.status == TRANSMITTER) {
     current_alarm_ID = ALARM_DISC;
     write_DISC(fd, TRANSMITTER);
@@ -141,16 +138,17 @@ int llclose(int fd) {
     exit(-1);
   }
 
-  close(fd);
+  if (close(fd) == -1) {
+    perror("close");
+    return -1;
+  }
 
-  return -1;
+  return 1;
 }
 
 void atende() {
-
-	printf("ALARME #%d\n", alarm_no);
-
   if(alarm_no == 3) {
+    printf("Error!\n");
     exit(1);
   }
 
@@ -178,9 +176,9 @@ void atende() {
 }
 
 void write_SET(int fd) {
-  printf("----- Writing SET -----\n");
   int res;
-  unsigned char buf[5];
+  unsigned char *buf;
+  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
   buf[0]=FLAG_SET;
   buf[1]=A_CA;
@@ -189,15 +187,15 @@ void write_SET(int fd) {
   buf[4]=FLAG_SET;
 
   res = write(fd, buf, 5);
-  printf("%d bytes written\n\n", res);
 
   alarm(3);
+
+  free(buf);
 }
 
 void read_SET(int fd) {
   reset_state_machines();
 
-  printf("----- Reading SET -----\n");
   int res;
   unsigned char byte;
 
@@ -206,25 +204,20 @@ void read_SET(int fd) {
     if (res == -1)
       break;
 
-    printf("nº bytes lido: %d - ", res);
-    printf("content: 0x%x\n", byte);
-
     current_state_SET = determineState_SET(byte, current_state_SET);
 
     if(current_state_SET == STOP_SET)
       STOP=TRUE;
 
-    printState_SET(current_state_SET);
     message[i] = byte;
     i++;
   }
-  printf("\n");
 }
 
 void write_UA(int fd, int status) {
-  printf("----- Writing UA -----\n");
   int res;
-  unsigned char buf[5];
+  unsigned char *buf;
+  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
   if (status == TRANSMITTER) {
     buf[0]=FLAG_UA;
@@ -244,13 +237,12 @@ void write_UA(int fd, int status) {
 
   res = write(fd, buf, 5);
 
-  printf("%d bytes written\n\n", res);
+  free(buf);
 }
 
 void read_UA(int fd) {
   reset_state_machines();
 
-  printf("----- Reading UA -----\n");
   int res;
   unsigned char byte;
 
@@ -260,23 +252,17 @@ void read_UA(int fd) {
     if (res == -1)
       break;
 
-    printf("nº bytes lido: %d - ", res);
-    printf("content: 0x%x\n", byte);
-
     current_state_UA = determineState_UA(byte, current_state_UA);
 
     if(current_state_UA == STOP_UA)
       STOP=TRUE;
 
-    printState_UA(current_state_UA);
     message[i] = byte;
     i++;
   }
-  printf("\n");
 }
 
 void write_I(int fd, int id, unsigned char *package_message, int length) {
-  printf("----- Writing I %d -----\n", id);
   int res;
   unsigned int totalLength = 6 + length;
   unsigned char BCC2;
@@ -304,11 +290,7 @@ void write_I(int fd, int id, unsigned char *package_message, int length) {
 
   unsigned char *stuffedBuffer = byteStuffing(buf, &totalLength);
 
-  for (int i = 0; i < totalLength; i++)
-    printf("buf[%d] : 0x%x\n", i, buf[i]);
-
   res = write(fd, stuffedBuffer, totalLength);
-  printf("%d bytes written\n\n", res);
 
   free(stuffedBuffer);
   free(buf);
@@ -326,18 +308,18 @@ int read_I(int fd, unsigned char **package_message) {
 
   reset_state_machines();
 
-  printf("----- Reading I %d-----\n", linkLayer.sequenceNumber);
-
   /* loop for input */
   while (STOP==FALSE) {       /* loop for input */
     res = read(fd,&byte,1);   /* returns after 1 char has been input */
     if (res == -1)
       break;
 
-    printf("nº bytes lido: %d - ", res);
-    printf("content: 0x%x\n", byte);
-
     current_state_I = determineState_I(byte, current_state_I);
+
+    if (current_state_I == C_RCV_I) {
+      if (byte >> 6 == linkLayer.sequenceNumber)
+        res = -1;
+    }
 
     if (current_state_I == STOP_I)
       STOP=TRUE;
@@ -348,10 +330,7 @@ int read_I(int fd, unsigned char **package_message) {
         dbcc[length - 1] = byte;
       }
     }
-
-    printState_I(current_state_I);
   }
-  printf("\n");
 
   destuffed = byteDestuffing(dbcc, &length);
 
@@ -366,17 +345,19 @@ int read_I(int fd, unsigned char **package_message) {
     (*package_message)[i] = destuffed[i];
   }
 
-  printf("5\n");
   free(destuffed);
   free(dbcc);
+
+  if (res == -1)
+    return -1;
 
   return length;
 }
 
 void write_RR(int fd) {
-  printf("----- Writing RR -----\n");
   int res;
-  unsigned char buf[5];
+  unsigned char *buf;
+  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
   buf[0]=FLAG_RR;
   buf[1]=A_CA;
@@ -391,14 +372,13 @@ void write_RR(int fd) {
 
   res = write(fd, buf, 5);
 
-  printf("%d bytes written\n\n", res);
+  free(buf);
 }
 
 
 int read_RR_REJ(int fd) {
   reset_state_machines();
 
-  printf("----- Reading RR or REJ -----\n");
   int res, aux = -1;
   unsigned char byte;
 
@@ -408,33 +388,27 @@ int read_RR_REJ(int fd) {
     if (res == -1)
       break;
 
-    printf("nº bytes lido: %d - ", res);
-    printf("content: 0x%x\n", byte);
-
     current_state_RR_REJ = determineState_RR_REJ(byte, current_state_RR_REJ);
 
     if(current_state_RR_REJ == STOP_RR_REJ)
       STOP=TRUE;
 
-    if(current_state_RR_REJ == C_RCV_RR)
+    if(current_state_RR_REJ == C_RCV_RR) {
       aux = 0;
+    }
 
-    if(current_state_RR_REJ == C_RCV_REJ)
+    if(current_state_RR_REJ == C_RCV_REJ) {
       aux = 1;
-
-    printState_RR_REJ(current_state_RR_REJ);
-    message[i] = byte;
-    i++;
+    }
   }
-  printf("\n");
 
   return aux;
 }
 
 void write_REJ(int fd) {
-  printf("----- Writing REJ -----\n");
   int res;
-  unsigned char buf[5];
+  unsigned char *buf;
+  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
   buf[0]=FLAG_REJ;
   buf[1]=A_CA;
@@ -449,13 +423,13 @@ void write_REJ(int fd) {
 
   res = write(fd, buf, 5);
 
-  printf("%d bytes written\n\n", res);
+  free(buf);
 }
 
 void write_DISC(int fd, int status) {
-  printf("----- Writing DISC -----\n");
   int res;
-  unsigned char buf[5];
+  unsigned char *buf;
+  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
   if (status == TRANSMITTER) {
     buf[0]=FLAG_DISC;
@@ -475,15 +449,14 @@ void write_DISC(int fd, int status) {
 
   res = write(fd, buf, 5);
 
-  printf("%d bytes written\n\n", res);
-
   alarm(3);
+
+  free(buf);
 }
 
 void read_DISC(int fd) {
   reset_state_machines();
 
-  printf("----- Reading DISC -----\n");
   int res;
   unsigned char byte;
 
@@ -493,19 +466,14 @@ void read_DISC(int fd) {
     if (res == -1)
       break;
 
-    printf("nº bytes lido: %d - ", res);
-    printf("content: 0x%x\n", byte);
-
     current_state_DISC = determineState_DISC(byte, current_state_DISC);
 
     if(current_state_DISC == STOP_DISC)
       STOP=TRUE;
 
-    printState_DISC(current_state_DISC);
     message[i] = byte;
     i++;
   }
-  printf("\n");
 }
 
 int checkBCC(unsigned char *data, int length) {
