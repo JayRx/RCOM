@@ -82,11 +82,9 @@ int llopen(char port[20], int status) {
 
   if (status == TRANSMITTER) {
     current_alarm_ID = ALARM_SET;
-    printf("LLOPEN\n");
     write_SET(fd);
     read_UA(fd);
   } else if (status == RECEIVER) {
-    printf("LLOPEN\n");
   	read_SET(fd);
     write_UA(fd, RECEIVER);
   }
@@ -178,8 +176,6 @@ void atende() {
 }
 
 void write_SET(int fd) {
-  printf("Writing SET\n");
-
   int res;
   unsigned char *buf;
   buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
@@ -198,7 +194,6 @@ void write_SET(int fd) {
 }
 
 void read_SET(int fd) {
-  printf("Reading SET\n");
   reset_state_machines();
 
   int res;
@@ -210,8 +205,6 @@ void read_SET(int fd) {
       break;
 
     current_state_SET = determineState_SET(byte, current_state_SET);
-    printf("SET State: ");
-    printState_SET(current_state_SET);
 
     if(current_state_SET == STOP_SET)
       STOP=TRUE;
@@ -222,7 +215,6 @@ void read_SET(int fd) {
 }
 
 void write_UA(int fd, int status) {
-  printf("Writing UA\n");
   int res;
   unsigned char *buf;
   buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
@@ -249,7 +241,6 @@ void write_UA(int fd, int status) {
 }
 
 void read_UA(int fd) {
-  printf("Reading UA\n");
   reset_state_machines();
 
   int res;
@@ -262,9 +253,6 @@ void read_UA(int fd) {
       break;
 
     current_state_UA = determineState_UA(byte, current_state_UA);
-
-    printf("UA State: ");
-    printState_UA(current_state_UA);
 
     if(current_state_UA == STOP_UA)
       STOP=TRUE;

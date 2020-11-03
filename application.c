@@ -312,8 +312,6 @@ int setDisconnection(char* port, int status) {
 }
 
 int checkUsage(int argc, char** argv, int* status)  {
-  printf("Checking Usage!\n");
-
 	if (argc < 3) {
 		printUsage();
 		return -1;
@@ -358,7 +356,7 @@ int checkUsage(int argc, char** argv, int* status)  {
 }
 
 void printUsage() {
-	printf("Usage:\trcom SerialPort writer File FragmentSize BaudRate\n\trcom SerialPort reader FragmentSize BaudRate\n\tEx: rcom ttyS0 writer pinguim.gif 16 B38400\n");
+	printf("Usage:\trcom SerialPort writer File FragmentSize BaudRate\n\trcom SerialPort reader FragmentSize BaudRate\n\tEx: rcom /dev/ttyS0 writer pinguim.gif 16 B38400\n");
 }
 
 void printProgressBar(int current, int total) {
