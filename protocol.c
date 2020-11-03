@@ -259,6 +259,9 @@ void read_UA(int fd) {
 
     current_state_UA = determineState_UA(byte, current_state_UA);
 
+    printf("UA State: ");
+    printState_UA(current_state_UA);
+
     if(current_state_UA == STOP_UA)
       STOP=TRUE;
 
