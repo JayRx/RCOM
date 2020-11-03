@@ -21,8 +21,10 @@ int main(int argc, char** argv) {
 
 	checkUsage(argc, argv, &status);
 
-  if (setConnection(argv[1], status) != 0)
+  if (setConnection(argv[1], status) != 0) {
+    printf("Error when connecting!\n");
     return -1;
+  }
 
   if (al.status == TRANSMITTER) {
     sendData();

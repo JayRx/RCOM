@@ -82,9 +82,11 @@ int llopen(char port[20], int status) {
 
   if (status == TRANSMITTER) {
     current_alarm_ID = ALARM_SET;
+    printf("LLOPEN\n");
     write_SET(fd);
     read_UA(fd);
   } else if (status == RECEIVER) {
+    printf("LLOPEN\n");
   	read_SET(fd);
     write_UA(fd, RECEIVER);
   }
