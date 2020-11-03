@@ -210,6 +210,8 @@ void read_SET(int fd) {
       break;
 
     current_state_SET = determineState_SET(byte, current_state_SET);
+    printf("SET State: ");
+    printState_SET(current_state_SET);
 
     if(current_state_SET == STOP_SET)
       STOP=TRUE;
