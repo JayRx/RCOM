@@ -257,7 +257,7 @@ int readControlPackage() {
     } else if (package_type == T_FILENAME) {
       data_size = (unsigned int) control_package[package_index++];
       al.filename = (char*) malloc(data_size * sizeof(char) + 1);
-      strcpy(al.filename, (char *)&control_package[package_index]);
+      strcpy(al.filename, (char *)&control_package[package_index+1]);
       getFileToWrite();
     } else {
       printf("Couldn't recognise Control Packet!\n");
