@@ -176,6 +176,8 @@ void atende() {
 }
 
 void write_SET(int fd) {
+  printf("Writing SET\n");
+
   int res;
   unsigned char *buf;
   buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
@@ -194,6 +196,7 @@ void write_SET(int fd) {
 }
 
 void read_SET(int fd) {
+  printf("Reading SET\n");
   reset_state_machines();
 
   int res;
@@ -215,6 +218,7 @@ void read_SET(int fd) {
 }
 
 void write_UA(int fd, int status) {
+  printf("Writing UA\n");
   int res;
   unsigned char *buf;
   buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
@@ -241,6 +245,7 @@ void write_UA(int fd, int status) {
 }
 
 void read_UA(int fd) {
+  printf("Reading UA\n");
   reset_state_machines();
 
   int res;
