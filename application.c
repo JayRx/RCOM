@@ -19,7 +19,10 @@ int main(int argc, char** argv) {
 
   int status;
 
-	checkUsage(argc, argv, &status);
+	if(checkUsage(argc, argv, &status) != 0) {
+    printf("Error when checking Usage!\n");
+    return -1;
+  }
 
   if (setConnection(argv[1], status) != 0) {
     printf("Error when connecting!\n");
@@ -313,14 +316,14 @@ int checkUsage(int argc, char** argv, int* status)  {
 
 	if (argc < 3) {
 		printUsage();
-		exit(1);
+		return -1;
 	}
 
 	if ((strcmp("/dev/ttyS10", argv[1])!=0) &&
   	    (strcmp("/dev/ttyS11", argv[1])!=0) &&
 		(strcmp("/dev/ttyS0", argv[1]) != 0)) {
 	  	printUsage();
-      	exit(1);
+      	return -1;
     }
 
 
@@ -328,11 +331,11 @@ int checkUsage(int argc, char** argv, int* status)  {
 		*status = TRANSMITTER;
     if (argc != 6) {
   		printUsage();
-  		exit(1);
+  		return -1;
   	}
     if (argv[3] == NULL) {
       printUsage();
-      exit(1);
+      return -1;
     }
     al.filename = (char *) malloc(64 * sizeof(char));
     strcpy(al.filename, argv[3]);
@@ -342,13 +345,13 @@ int checkUsage(int argc, char** argv, int* status)  {
 		*status = RECEIVER;
     if (argc != 5) {
   		printUsage();
-  		exit(1);
+  		return -1;
   	}
     al.fragmentSize = atoi(argv[3]);
     linkLayer.baudRate = intToBaudrate(atoi(argv[4]+1));
 	} else {
 		printUsage();
-		exit(1);
+		return -1;
 	}
 
   return 0;
