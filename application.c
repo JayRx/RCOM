@@ -309,6 +309,8 @@ int setDisconnection(char* port, int status) {
 }
 
 int checkUsage(int argc, char** argv, int* status)  {
+  printf("Checking Usage!\n");
+
 	if (argc < 3) {
 		printUsage();
 		exit(1);
