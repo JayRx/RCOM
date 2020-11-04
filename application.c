@@ -109,14 +109,17 @@ int sendData() {
 }
 
 int sendDataPackage(unsigned char *package_message, unsigned int seq_number, unsigned int length) {
-  unsigned char data_package[255];
+  unsigned char *data_package;
   int data_package_size = length + 4;
+
+  data_package = (unsigned char*) malloc(data_package_size * sizeof(unsigned char) + 1);
 
   data_package[0] = DATA_PACKAGE;
   data_package[1] = seq_number;
   data_package[2] = length / 256;
   data_package[3] = length % 256;
-  for (int i = 0; i < length; i++) {
+
+  for (unsigned int i = 0; i < length; i++) {
     data_package[i + 4] = package_message[i];
   }
 

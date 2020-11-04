@@ -107,10 +107,7 @@ int llwrite(int fd, unsigned char *buffer, int length) {
 int llread(int fd, unsigned char** buffer) {
   int res;
 
-  do {
-    res = read_I(fd, buffer);
-  }
-  while(res == -1);
+  res = read_I(fd, buffer);
 
   if(res > 0)
     write_RR(fd);
@@ -126,6 +123,7 @@ int llclose(int fd) {
     write_DISC(fd, TRANSMITTER);
     read_DISC(fd);
     write_UA(fd, TRANSMITTER);
+    sleep(100);
   } else if (al.status == RECEIVER) {
     read_DISC(fd);
     current_alarm_ID = ALARM_DISC;
@@ -510,7 +508,7 @@ unsigned char *byteStuffing(unsigned char *frame, unsigned int *length) {
   int i, j = 0;
   stuffedFrame[j++] = FLAG_I;
 
-  // excluir FLAG inicial e final
+  // Do stuffing of all except flags
   for (i = 1; i < *length - 1; i++) {
     if (frame[i] == FLAG_I) {
       stuffedFrame = (unsigned char *)realloc(stuffedFrame, ++finalLength);
@@ -533,6 +531,7 @@ unsigned char *byteStuffing(unsigned char *frame, unsigned int *length) {
 
   *length = finalLength;
 
+  //Return Stuffed Frame
   return stuffedFrame;
 }
 
