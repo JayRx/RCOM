@@ -137,15 +137,15 @@ int connection=100;
       fromStdin=read(STDIN_FILENO, rxStdin, 512);
       if(fromStdin>0){
           rxStdin[fromStdin-1]=0;
-          if (strcmp((char *) rxStdin, "off")==0 ) {
+          if (strcmp(rxStdin, "off")==0 ) {
               connection=0;
               printf("CONNECTION OFF\n");
               }
-          if (strcmp((char *) rxStdin, "on")==0 ) {
+          if (strcmp(rxStdin, "on")==0 ) {
               connection=100;
               printf("CONNECTION ON\n");
               }
-          if (strcmp((char *) rxStdin, "end")==0 ) {
+          if (strcmp(rxStdin, "end")==0 ) {
               printf("END OF THE PROGRAM\n");
               STOP=TRUE;
               }

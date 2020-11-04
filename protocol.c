@@ -93,15 +93,12 @@ int llopen(char port[20], int status) {
 }
 
 int llwrite(int fd, unsigned char *buffer, int length) {
-  current_alarm_ID = ALARM_I;
-  reset_state_machines();
-
   package_message = buffer;
 
   package_message_size = length;
 
   write_I(fd, linkLayer.sequenceNumber, buffer, length);
-  if(read_RR_REJ(fd))
+  while(read_RR_REJ(fd))
     write_I(fd, linkLayer.sequenceNumber, buffer, length);
 
   return 0;
@@ -110,7 +107,10 @@ int llwrite(int fd, unsigned char *buffer, int length) {
 int llread(int fd, unsigned char** buffer) {
   int res;
 
-  res = read_I(fd, buffer);
+  do {
+    res = read_I(fd, buffer);
+  }
+  while(res == -1);
 
   if(res > 0)
     write_RR(fd);
@@ -167,7 +167,7 @@ void atende() {
       alarm_no = 0;
     }
   } else if (current_alarm_ID == ALARM_I) {
-    if (current_state_RR_REJ != STOP_RR_REJ ) {
+    if (current_state_RR_REJ != STOP_RR_REJ) {
       write_I(al.fileDescriptor, linkLayer.sequenceNumber, package_message, package_message_size);
     } else {
       alarm_no = 0;
@@ -269,6 +269,9 @@ void write_I(int fd, int id, unsigned char *package_message, int length) {
   unsigned char* buf;
   buf = malloc(totalLength * sizeof(char));
 
+  current_alarm_ID = ALARM_I;
+  reset_state_machines();
+
   buf[0]=FLAG_I;
   buf[1]=A_CA;
   if (id == 0) {
@@ -311,6 +314,7 @@ int read_I(int fd, unsigned char **package_message) {
   /* loop for input */
   while (STOP==FALSE) {       /* loop for input */
     res = read(fd,&byte,1);   /* returns after 1 char has been input */
+
     if (res == -1)
       break;
 
@@ -318,7 +322,7 @@ int read_I(int fd, unsigned char **package_message) {
 
     if (current_state_I == C_RCV_I) {
       if (byte >> 6 == linkLayer.sequenceNumber)
-        res = -1;
+        res = -2;
     }
 
     if (current_state_I == STOP_I)
@@ -332,11 +336,16 @@ int read_I(int fd, unsigned char **package_message) {
     }
   }
 
+  if (res == -1) {
+    free(dbcc);
+    return -1;
+  }
+
   destuffed = byteDestuffing(dbcc, &length);
 
   if (!checkBCC(destuffed, length)) {
     printf("Wrong BCC. Sending REJ!\n");
-    write_REJ(fd);
+    res = -2;
   }
 
   *package_message = (unsigned char *) realloc(*package_message, --length);
@@ -348,8 +357,8 @@ int read_I(int fd, unsigned char **package_message) {
   free(destuffed);
   free(dbcc);
 
-  if (res == -1)
-    return -1;
+  if (res == -2)
+    return -2;
 
   return length;
 }
