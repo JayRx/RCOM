@@ -247,7 +247,6 @@ int readControlPackage() {
   unsigned int data_size;
 
   if (control_package[0] == END_PACKAGE) {
-    free(control_package);
     return 0;
   }
 
