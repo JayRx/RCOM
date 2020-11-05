@@ -1,4 +1,3 @@
-#define MAX_SIZE 256
 #define TRANSMITTER 0
 #define RECEIVER 1
 
@@ -8,7 +7,6 @@ struct linkLayer {
   unsigned int sequenceNumber; // Número de sequência da trama: 0, 1
   unsigned int timeout; // Valor do temporizador: 1s
   unsigned int numTransmissions; // Número de tentativas em caso de falha
-  char frame[MAX_SIZE]; // Trama
 };
 
 enum alarm_IDs {
@@ -21,7 +19,7 @@ int llopen(char port[20], int status); // Return id of data connection if succes
 
 int llwrite(int fd, unsigned char *buffer, int length); // Return array size (number of chars written) if success or a negative number if error
 
-int llread(int fd, unsigned char** buffer); // Return array size (number of chars read) if success or a negative number if error
+int llread(int fd, unsigned char* buffer); // Return array size (number of chars read) if success or a negative number if error
 
 int llclose(int fd); // Return a positive number if success or a negative number if error
 
@@ -35,7 +33,7 @@ void read_UA(int fd);
 
 void write_I(int fd, int id, unsigned char *package_message, int length);
 
-int read_I(int fd, unsigned char** package_message);
+int read_I(int fd, unsigned char* package_message);
 
 void write_RR(int fd);
 
@@ -49,9 +47,9 @@ void read_DISC(int fd);
 
 void atende();
 
-unsigned char *byteStuffing(unsigned char *buffer, unsigned int *length);
+int byteStuffing(unsigned char *buffer, unsigned int *length);
 
-unsigned char *byteDestuffing(unsigned char *data, unsigned int *length);
+int byteDestuffing(unsigned char *data, unsigned int *length);
 
 int checkBCC(unsigned char *data, int length);
 

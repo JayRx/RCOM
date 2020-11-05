@@ -17,7 +17,6 @@ struct applicationLayer {
   int fileDescriptor; // Descriptor of serial port
   int status; // TRANSMITTER | RECEIVER
   char* filename; // Name of the file to be transmitted
-  unsigned char* fileData;
   FILE* fileDescriptorTBT; // Descriptor of the file to be transmitted
   off_t fileSize; // Size of the file to be transmitted
   unsigned int fragmentSize; // Max size of each fragment
@@ -35,7 +34,7 @@ int sendControlPackage(unsigned char byte);
 
 int readData();
 
-int readDataPackage(unsigned char** package_message, int seq_number);
+int readDataPackage(unsigned char* package_message, int seq_number);
 
 int readControlPackage();
 

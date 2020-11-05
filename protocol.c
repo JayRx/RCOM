@@ -27,9 +27,13 @@ struct termios oldtio,newtio;
 volatile int STOP=FALSE;
 
 int i = 0, package_message_size = 0;
-unsigned char message[255];
 unsigned char* package_message;
 volatile int STOP_READING=FALSE;
+unsigned char command_message[5];
+extern unsigned char *messageIO;
+extern unsigned char *stuffedFrame;
+extern unsigned char *destuffedFrame;
+extern unsigned char *dbcc;
 
 int llopen(char port[20], int status) {
   int fd;
@@ -94,17 +98,16 @@ int llopen(char port[20], int status) {
 
 int llwrite(int fd, unsigned char *buffer, int length) {
   package_message = buffer;
-
   package_message_size = length;
 
   write_I(fd, linkLayer.sequenceNumber, buffer, length);
-  while(read_RR_REJ(fd))
-    write_I(fd, linkLayer.sequenceNumber, buffer, length);
+  if(read_RR_REJ(fd))
+    llwrite(fd, package_message, package_message_size);
 
   return 0;
 }
 
-int llread(int fd, unsigned char** buffer) {
+int llread(int fd, unsigned char* buffer) {
   int res;
 
   res = read_I(fd, buffer);
@@ -123,7 +126,7 @@ int llclose(int fd) {
     write_DISC(fd, TRANSMITTER);
     read_DISC(fd);
     write_UA(fd, TRANSMITTER);
-    sleep(100);
+    sleep(linkLayer.timeout);
   } else if (al.status == RECEIVER) {
     read_DISC(fd);
     current_alarm_ID = ALARM_DISC;
@@ -166,7 +169,7 @@ void atende() {
     }
   } else if (current_alarm_ID == ALARM_I) {
     if (current_state_RR_REJ != STOP_RR_REJ) {
-      write_I(al.fileDescriptor, linkLayer.sequenceNumber, package_message, package_message_size);
+      llwrite(al.fileDescriptor, package_message, package_message_size);
     } else {
       alarm_no = 0;
     }
@@ -175,20 +178,16 @@ void atende() {
 
 void write_SET(int fd) {
   int res;
-  unsigned char *buf;
-  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
-  buf[0]=FLAG_SET;
-  buf[1]=A_CA;
-  buf[2]=SET;
-  buf[3]=BCC_SET;
-  buf[4]=FLAG_SET;
+  command_message[0]=FLAG_SET;
+  command_message[1]=A_CA;
+  command_message[2]=SET;
+  command_message[3]=BCC_SET;
+  command_message[4]=FLAG_SET;
 
-  res = write(fd, buf, 5);
+  res = write(fd, command_message, 5);
 
-  alarm(3);
-
-  free(buf);
+  alarm(linkLayer.timeout);
 }
 
 void read_SET(int fd) {
@@ -206,36 +205,29 @@ void read_SET(int fd) {
 
     if(current_state_SET == STOP_SET)
       STOP=TRUE;
-
-    message[i] = byte;
-    i++;
   }
 }
 
 void write_UA(int fd, int status) {
   int res;
-  unsigned char *buf;
-  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
   if (status == TRANSMITTER) {
-    buf[0]=FLAG_UA;
-    buf[1]=A_AC;
-    buf[2]=UA;
-    buf[3]=BCC_UA_TRANSMITTER;
-    buf[4]=FLAG_UA;
+    command_message[0]=FLAG_UA;
+    command_message[1]=A_AC;
+    command_message[2]=UA;
+    command_message[3]=BCC_UA_TRANSMITTER;
+    command_message[4]=FLAG_UA;
   } else if (status == RECEIVER) {
-    buf[0]=FLAG_UA;
-    buf[1]=A_CA;
-    buf[2]=UA;
-    buf[3]=BCC_UA_RECEIVER;
-    buf[4]=FLAG_UA;
+    command_message[0]=FLAG_UA;
+    command_message[1]=A_CA;
+    command_message[2]=UA;
+    command_message[3]=BCC_UA_RECEIVER;
+    command_message[4]=FLAG_UA;
   } else {
     return;
   }
 
-  res = write(fd, buf, 5);
-
-  free(buf);
+  res = write(fd, command_message, 5);
 }
 
 void read_UA(int fd) {
@@ -254,9 +246,6 @@ void read_UA(int fd) {
 
     if(current_state_UA == STOP_UA)
       STOP=TRUE;
-
-    message[i] = byte;
-    i++;
   }
 }
 
@@ -264,48 +253,40 @@ void write_I(int fd, int id, unsigned char *package_message, int length) {
   int res;
   unsigned int totalLength = 6 + length;
   unsigned char BCC2;
-  unsigned char* buf;
-  buf = malloc(totalLength * sizeof(char));
 
   current_alarm_ID = ALARM_I;
   reset_state_machines();
 
-  buf[0]=FLAG_I;
-  buf[1]=A_CA;
+  messageIO[0]=FLAG_I;
+  messageIO[1]=A_CA;
   if (id == 0) {
-    buf[2]=I0;
-    buf[3]=BCC1_I0;
+    messageIO[2]=I0;
+    messageIO[3]=BCC1_I0;
   } else if (id == 1) {
-    buf[2]=I1;
-    buf[3]=BCC1_I1;
+    messageIO[2]=I1;
+    messageIO[3]=BCC1_I1;
   }
 
-  buf[4] = package_message[0];
-  BCC2 = buf[4];
+  messageIO[4] = package_message[0];
+  BCC2 = messageIO[4];
   for (int i = 1; i < length; i++){
-    buf[i + 4] = package_message[i];
-    BCC2 = BCC2 ^ buf[i + 4];
+    messageIO[i + 4] = package_message[i];
+    BCC2 = BCC2 ^ messageIO[i + 4];
   }
-  buf[4 + length]=BCC2;
-  buf[4 + length + 1]=FLAG_SET;
+  messageIO[4 + length]=BCC2;
+  messageIO[4 + length + 1]=FLAG_SET;
 
-  unsigned char *stuffedBuffer = byteStuffing(buf, &totalLength);
+  byteStuffing(messageIO, &totalLength);
 
-  res = write(fd, stuffedBuffer, totalLength);
+  res = write(fd, stuffedFrame, totalLength);
 
-  free(stuffedBuffer);
-  free(buf);
-
-  alarm(3);
+  alarm(linkLayer.timeout);
 }
 
-int read_I(int fd, unsigned char **package_message) {
+int read_I(int fd, unsigned char *package_message) {
   int res;
   unsigned char byte;
   unsigned int length = 0;
-  unsigned char *dbcc = (unsigned char *) malloc(length);
-  unsigned char *destuffed;
-  *package_message = (unsigned char *) malloc(0);
 
   reset_state_machines();
 
@@ -328,32 +309,27 @@ int read_I(int fd, unsigned char **package_message) {
 
     if (current_state_I == D_RCV_I) {
       if(STOP_READING==FALSE) {
-        dbcc = (unsigned char *) realloc(dbcc, ++length);
+        length++;
         dbcc[length - 1] = byte;
       }
     }
   }
 
   if (res == -1) {
-    free(dbcc);
     return -1;
   }
 
-  destuffed = byteDestuffing(dbcc, &length);
+  byteDestuffing(dbcc, &length);
 
-  if (!checkBCC(destuffed, length)) {
+  if (!checkBCC(destuffedFrame, length)) {
     printf("Wrong BCC. Sending REJ!\n");
     res = -2;
   }
 
-  *package_message = (unsigned char *) realloc(*package_message, --length);
-
+  length--;
   for (int i = 0; i < length; i++) {
-    (*package_message)[i] = destuffed[i];
+    package_message[i] = destuffedFrame[i];
   }
-
-  free(destuffed);
-  free(dbcc);
 
   if (res == -2)
     return -2;
@@ -363,23 +339,19 @@ int read_I(int fd, unsigned char **package_message) {
 
 void write_RR(int fd) {
   int res;
-  unsigned char *buf;
-  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
-  buf[0]=FLAG_RR;
-  buf[1]=A_CA;
+  command_message[0]=FLAG_RR;
+  command_message[1]=A_CA;
   if (linkLayer.sequenceNumber == 0) {
-    buf[2]=RR0;
-    buf[3]=BCC_RR0;
+    command_message[2]=RR0;
+    command_message[3]=BCC_RR0;
   } else if (linkLayer.sequenceNumber == 1) {
-    buf[2]=RR1;
-    buf[3]=BCC_RR1;
+    command_message[2]=RR1;
+    command_message[3]=BCC_RR1;
   }
-  buf[4]=FLAG_RR;
+  command_message[4]=FLAG_RR;
 
-  res = write(fd, buf, 5);
-
-  free(buf);
+  res = write(fd, command_message, 5);
 }
 
 
@@ -414,51 +386,43 @@ int read_RR_REJ(int fd) {
 
 void write_REJ(int fd) {
   int res;
-  unsigned char *buf;
-  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
-  buf[0]=FLAG_REJ;
-  buf[1]=A_CA;
+  command_message[0]=FLAG_REJ;
+  command_message[1]=A_CA;
   if (linkLayer.sequenceNumber == 0) {
-    buf[2]=REJ0;
-    buf[3]=BCC_REJ0;
+    command_message[2]=REJ0;
+    command_message[3]=BCC_REJ0;
   } else if (linkLayer.sequenceNumber == 1) {
-    buf[2]=REJ1;
-    buf[3]=BCC_REJ1;
+    command_message[2]=REJ1;
+    command_message[3]=BCC_REJ1;
   }
-  buf[4]=FLAG_REJ;
+  command_message[4]=FLAG_REJ;
 
-  res = write(fd, buf, 5);
-
-  free(buf);
+  res = write(fd, command_message, 5);
 }
 
 void write_DISC(int fd, int status) {
   int res;
-  unsigned char *buf;
-  buf = (unsigned char*) malloc(5 * sizeof(unsigned char));
 
   if (status == TRANSMITTER) {
-    buf[0]=FLAG_DISC;
-    buf[1]=A_CA;
-    buf[2]=DISC;
-    buf[3]=BCC_DISC_TRANSMITTER;
-    buf[4]=FLAG_DISC;
+    command_message[0]=FLAG_DISC;
+    command_message[1]=A_CA;
+    command_message[2]=DISC;
+    command_message[3]=BCC_DISC_TRANSMITTER;
+    command_message[4]=FLAG_DISC;
   } else if (status == RECEIVER) {
-    buf[0]=FLAG_DISC;
-    buf[1]=A_AC;
-    buf[2]=DISC;
-    buf[3]=BCC_DISC_RECEIVER;
-    buf[4]=FLAG_DISC;
+    command_message[0]=FLAG_DISC;
+    command_message[1]=A_AC;
+    command_message[2]=DISC;
+    command_message[3]=BCC_DISC_RECEIVER;
+    command_message[4]=FLAG_DISC;
   } else {
     return;
   }
 
-  res = write(fd, buf, 5);
+  res = write(fd, command_message, 5);
 
-  alarm(3);
-
-  free(buf);
+  alarm(linkLayer.timeout);
 }
 
 void read_DISC(int fd) {
@@ -477,9 +441,6 @@ void read_DISC(int fd) {
 
     if(current_state_DISC == STOP_DISC)
       STOP=TRUE;
-
-    message[i] = byte;
-    i++;
   }
 }
 
@@ -501,8 +462,7 @@ int checkBCC(unsigned char *data, int length) {
   }
 }
 
-unsigned char *byteStuffing(unsigned char *frame, unsigned int *length) {
-  unsigned char *stuffedFrame = (unsigned char *)malloc(*length);
+int byteStuffing(unsigned char *frame, unsigned int *length) {
   unsigned int finalLength = *length;
 
   int i, j = 0;
@@ -511,13 +471,13 @@ unsigned char *byteStuffing(unsigned char *frame, unsigned int *length) {
   // Do stuffing of all except flags
   for (i = 1; i < *length - 1; i++) {
     if (frame[i] == FLAG_I) {
-      stuffedFrame = (unsigned char *)realloc(stuffedFrame, ++finalLength);
+      finalLength++;
       stuffedFrame[j] = ESCAPE;
       stuffedFrame[++j] = PATTERNFLAG;
       j++;
       continue;
     } else if (frame[i] == ESCAPE) {
-      stuffedFrame = (unsigned char *)realloc(stuffedFrame, ++finalLength);
+      finalLength++;
       stuffedFrame[j] = ESCAPE;
       stuffedFrame[++j] = PATTERNESCAPE;
       j++;
@@ -531,39 +491,37 @@ unsigned char *byteStuffing(unsigned char *frame, unsigned int *length) {
 
   *length = finalLength;
 
-  //Return Stuffed Frame
-  return stuffedFrame;
+  return 0;
 }
 
-unsigned char *byteDestuffing(unsigned char *data, unsigned int *length) {
+int byteDestuffing(unsigned char *data, unsigned int *length) {
   unsigned int finalLength = 0;
-  unsigned char *newData = malloc(finalLength);
 
   int i;
   for (i = 0; i < *length; i++) {
 
     if (data[i] == ESCAPE) {
       if (data[i + 1] == PATTERNFLAG) {
-        newData = (unsigned char *)realloc(newData, ++finalLength);
-        newData[finalLength - 1] = FLAG_I;
+        finalLength++;
+        destuffedFrame[finalLength - 1] = FLAG_I;
         i++;
         continue;
       } else if (data[i + 1] == PATTERNESCAPE) {
-        newData = (unsigned char *)realloc(newData, ++finalLength);
-        newData[finalLength - 1] = ESCAPE;
+        finalLength++;
+        destuffedFrame[finalLength - 1] = ESCAPE;
         i++;
         continue;
       }
     }
 
     else {
-      newData = (unsigned char *)realloc(newData, ++finalLength);
-      newData[finalLength - 1] = data[i];
+      finalLength++;
+      destuffedFrame[finalLength - 1] = data[i];
     }
   }
 
   *length = finalLength;
-  return newData;
+  return 0;
 }
 
 void reset_state_machines() {

@@ -14,6 +14,13 @@
 
 struct applicationLayer al;
 struct linkLayer linkLayer;
+unsigned char *message;
+unsigned char *messageIO;
+unsigned char *data_package;
+unsigned char *control_package;
+unsigned char *stuffedFrame;
+unsigned char *destuffedFrame;
+unsigned char *dbcc;
 
 int main(int argc, char** argv) {
 
@@ -29,6 +36,14 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  message = (unsigned char*) malloc(al.fragmentSize + 1);
+  data_package = (unsigned char*) malloc(4 + al.fragmentSize + 1);
+  control_package = (unsigned char*) malloc(1024);
+  messageIO = (unsigned char*) malloc(6 + 4 + al.fragmentSize + 1);
+  stuffedFrame = (unsigned char*) malloc((6 + 4 + al.fragmentSize) * 2 + 1);
+  destuffedFrame = (unsigned char*) malloc(6 + 4 + al.fragmentSize + 1);
+  dbcc = (unsigned char *) malloc((6 + 4 + al.fragmentSize) * 2 + 1);
+
   if (al.status == TRANSMITTER) {
     sendData();
   } else if (al.status == RECEIVER) {
@@ -36,6 +51,14 @@ int main(int argc, char** argv) {
   }
 
   setDisconnection(argv[1], status);
+
+  free(message);
+  free(data_package);
+  free(control_package);
+  free(messageIO);
+  free(stuffedFrame);
+  free(destuffedFrame);
+  free(dbcc);
 
   return 0;
 }
@@ -61,8 +84,7 @@ int getFileToWrite() {
     return -1;
   }
 
-  //al.fileDescriptorTBT = fopen((char*)"pinguim2.gif", "wb+");
-  printf("Filename: %s\n", al.filename);
+  printf("\nFilename: %s\tSize: %ld\n", al.filename, al.fileSize);
   al.fileDescriptorTBT = fopen((char*) al.filename, "wb+");
   if (al.fileDescriptorTBT == NULL) {
     perror("Error when opening file");
@@ -73,11 +95,8 @@ int getFileToWrite() {
 }
 
 int sendData() {
-  unsigned char* message;
   int package_message_size = 0, seq_number = 0;
   int sent_size = 0;
-
-  message = (unsigned char*) malloc(al.fragmentSize + 1);
 
   printf("\nSending Data...\n");
 
@@ -101,7 +120,6 @@ int sendData() {
   }
 
   free(al.filename);
-  free(message);
 
   printf("\n");
 
@@ -109,10 +127,7 @@ int sendData() {
 }
 
 int sendDataPackage(unsigned char *package_message, unsigned int seq_number, unsigned int length) {
-  unsigned char *data_package;
   int data_package_size = length + 4;
-
-  data_package = (unsigned char*) malloc(data_package_size * sizeof(unsigned char) + 1);
 
   data_package[0] = DATA_PACKAGE;
   data_package[1] = seq_number;
@@ -166,14 +181,13 @@ int sendControlPackage(unsigned char byte) {
 
 int readData() {
   printf("\nReading Data...\n");
-  unsigned char* message;
   int counter = 0, length = 0;
   unsigned int seq_number = 0;
 
   readControlPackage();
 
   while(counter < al.fileSize) {
-    length = readDataPackage(&message, seq_number);
+    length = readDataPackage(message, seq_number);
 
     if (fwrite(message, sizeof(unsigned char), length, al.fileDescriptorTBT) <= 0) {
       perror("Couldn't write to file");
@@ -183,8 +197,6 @@ int readData() {
     }
 
     printProgressBar(counter, al.fileSize);
-
-    free(message);
   }
 
   readControlPackage();
@@ -195,19 +207,17 @@ int readData() {
   }
 
   free(al.filename);
-  free(al.fileData);
 
   printf("\n");
 
   return 0;
 }
 
-int readDataPackage(unsigned char** package_message, int seq_number) {
-  unsigned char* data_package;
+int readDataPackage(unsigned char* package_message, int seq_number) {
   unsigned char C;
   int N, L1, L2, K;
 
-  llread(al.fileDescriptor, &data_package);
+  llread(al.fileDescriptor, data_package);
 
   C = data_package[0];
   if (C != DATA_PACKAGE) {
@@ -221,10 +231,7 @@ int readDataPackage(unsigned char** package_message, int seq_number) {
   L1 = data_package[3];
   K = 256 * L2 + L1;
 
-  *package_message = (unsigned char *) malloc(K);
-  memcpy((*package_message), (data_package + 4), K);
-
-  free(data_package);
+  memcpy((package_message), (data_package + 4), K);
 
   if (seq_number % 256 != N)
     return -1;
@@ -235,9 +242,7 @@ int readDataPackage(unsigned char** package_message, int seq_number) {
 }
 
 int readControlPackage() {
-  unsigned char* control_package;
-
-  llread(al.fileDescriptor, &control_package);
+  llread(al.fileDescriptor, control_package);
   int package_index = 0;
   unsigned int data_size;
 
@@ -255,7 +260,6 @@ int readControlPackage() {
     if (package_type == T_FILESIZE) {
       data_size = (unsigned int) control_package[package_index++];
       al.fileSize = *((off_t *)(control_package + package_index));
-      al.fileData = (unsigned char*) malloc(al.fileSize * sizeof(char));
       package_index += data_size;
     } else if (package_type == T_FILENAME) {
       data_size = (unsigned int) control_package[package_index++];
@@ -266,8 +270,6 @@ int readControlPackage() {
       printf("Couldn't recognise Control Packet!\n");
     }
   }
-
-  free(control_package);
 
   return 0;
 }
