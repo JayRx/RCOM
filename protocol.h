@@ -31,7 +31,7 @@ void write_UA(int fd, int status);
 
 void read_UA(int fd);
 
-void write_I(int fd, int id, unsigned char *package_message, int length);
+int write_I(int fd, int id, unsigned char *package_message, int length);
 
 int read_I(int fd, unsigned char* package_message);
 

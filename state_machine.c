@@ -31,7 +31,7 @@ enum states_SET determineState_SET(unsigned char byte, enum states_SET s) {
   if (s == OTHER_RCV_SET)
     return START_SET;
 
-  return OTHER_RCV_SET;
+  return START_SET;
 }
 
 enum states_UA determineState_UA(unsigned char byte, enum states_UA s) {
@@ -65,7 +65,7 @@ enum states_UA determineState_UA(unsigned char byte, enum states_UA s) {
   if (s == OTHER_RCV_UA)
     return START_UA;
 
-  return OTHER_RCV_UA;
+  return START_UA;
 }
 
 enum states_I determineState_I(unsigned char byte, enum states_I s) {
@@ -111,7 +111,7 @@ enum states_I determineState_I(unsigned char byte, enum states_I s) {
   if (s == OTHER_RCV_I)
     return START_I;
 
-  return OTHER_RCV_I;
+  return START_I;
 }
 
 enum states_RR_REJ determineState_RR_REJ(unsigned char byte, enum states_RR_REJ s) {
@@ -157,7 +157,7 @@ enum states_RR_REJ determineState_RR_REJ(unsigned char byte, enum states_RR_REJ 
   if (s == OTHER_RCV_RR_REJ)
     return START_RR_REJ;
 
-  return OTHER_RCV_RR_REJ;
+  return START_RR_REJ;
 }
 
 enum states_DISC determineState_DISC(unsigned char byte, enum states_DISC s) {
@@ -191,7 +191,7 @@ enum states_DISC determineState_DISC(unsigned char byte, enum states_DISC s) {
   if (s == OTHER_RCV_DISC)
     return START_DISC;
 
-  return OTHER_RCV_DISC;
+  return START_DISC;
 }
 
 void printState_SET(enum states_SET s) {

@@ -3,7 +3,7 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 #define FALSE 0
 #define TRUE 1
-#define TIMEOUT 10
+#define TIMEOUT 5
 #define NUMTRANSMISSIONS 3
 
 #define DATA_PACKAGE 1

@@ -97,11 +97,17 @@ int llopen(char port[20], int status) {
 }
 
 int llwrite(int fd, unsigned char *buffer, int length) {
+  int res;
+
   package_message = buffer;
   package_message_size = length;
 
-  write_I(fd, linkLayer.sequenceNumber, buffer, length);
-  if(read_RR_REJ(fd))
+  res = write_I(fd, linkLayer.sequenceNumber, buffer, length);
+
+  if (res <= 0)
+    llwrite(fd, package_message, package_message_size);
+
+  if (read_RR_REJ(fd))
     llwrite(fd, package_message, package_message_size);
 
   return 0;
@@ -126,7 +132,7 @@ int llclose(int fd) {
     write_DISC(fd, TRANSMITTER);
     read_DISC(fd);
     write_UA(fd, TRANSMITTER);
-    sleep(linkLayer.timeout);
+    sleep(1);
   } else if (al.status == RECEIVER) {
     read_DISC(fd);
     current_alarm_ID = ALARM_DISC;
@@ -169,7 +175,8 @@ void atende() {
     }
   } else if (current_alarm_ID == ALARM_I) {
     if (current_state_RR_REJ != STOP_RR_REJ) {
-      llwrite(al.fileDescriptor, package_message, package_message_size);
+      printf("Error! Rewriting...\n");
+      write_I(al.fileDescriptor, linkLayer.sequenceNumber, package_message, package_message_size);
     } else {
       alarm_no = 0;
     }
@@ -200,6 +207,9 @@ void read_SET(int fd) {
     res = read(fd,&byte,1);   /* returns after 1 char has been input */
     if (res == -1)
       break;
+
+    if (res == 0)
+      continue;
 
     current_state_SET = determineState_SET(byte, current_state_SET);
 
@@ -242,6 +252,9 @@ void read_UA(int fd) {
     if (res == -1)
       break;
 
+    if (res == 0)
+      continue;
+
     current_state_UA = determineState_UA(byte, current_state_UA);
 
     if(current_state_UA == STOP_UA)
@@ -249,7 +262,7 @@ void read_UA(int fd) {
   }
 }
 
-void write_I(int fd, int id, unsigned char *package_message, int length) {
+int write_I(int fd, int id, unsigned char *package_message, int length) {
   int res;
   unsigned int totalLength = 6 + length;
   unsigned char BCC2;
@@ -281,6 +294,8 @@ void write_I(int fd, int id, unsigned char *package_message, int length) {
   res = write(fd, stuffedFrame, totalLength);
 
   alarm(linkLayer.timeout);
+
+  return res;
 }
 
 int read_I(int fd, unsigned char *package_message) {
@@ -295,7 +310,10 @@ int read_I(int fd, unsigned char *package_message) {
     res = read(fd,&byte,1);   /* returns after 1 char has been input */
 
     if (res == -1)
-      break;
+      continue;
+
+    if (res == 0)
+      continue;
 
     current_state_I = determineState_I(byte, current_state_I);
 
@@ -367,6 +385,9 @@ int read_RR_REJ(int fd) {
     if (res == -1)
       break;
 
+    if (res == 0)
+      continue;
+
     current_state_RR_REJ = determineState_RR_REJ(byte, current_state_RR_REJ);
 
     if(current_state_RR_REJ == STOP_RR_REJ)
@@ -436,6 +457,9 @@ void read_DISC(int fd) {
     res = read(fd,&byte,1);   /* returns after 1 char has been input */
     if (res == -1)
       break;
+
+    if (res == 0)
+      continue;
 
     current_state_DISC = determineState_DISC(byte, current_state_DISC);
 
