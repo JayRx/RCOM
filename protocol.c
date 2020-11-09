@@ -307,8 +307,6 @@ int read_I(int fd, unsigned char *package_message) {
 
   reset_state_machines();
 
-  printf("----- Reading I -----\n");
-
   /* loop for input */
   while (STOP==FALSE) {       /* loop for input */
     res = read(fd,&byte,1);   /* returns after 1 char has been input */
@@ -320,8 +318,6 @@ int read_I(int fd, unsigned char *package_message) {
       continue;
 
     current_state_I = determineState_I(byte, current_state_I);
-
-    printState_I(current_state_I);
 
     if (current_state_I == C_RCV_I) {
       if (byte >> 6 == linkLayer.sequenceNumber)
@@ -346,7 +342,7 @@ int read_I(int fd, unsigned char *package_message) {
   byteDestuffing(dbcc, &length);
 
   if (!checkBCC(destuffedFrame, length)) {
-    printf("Wrong BCC. Sending REJ!\n");
+    printf("\nWrong BCC. Sending REJ!\n");
     res = -2;
   }
 
