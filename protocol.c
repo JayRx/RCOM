@@ -120,8 +120,10 @@ int llread(int fd, unsigned char* buffer) {
 
   if(res > 0)
     write_RR(fd);
-  else
+  else {
     write_REJ(fd);
+    llread(fd, buffer);
+  }
 
   return res;
 }
@@ -305,6 +307,8 @@ int read_I(int fd, unsigned char *package_message) {
 
   reset_state_machines();
 
+  printf("----- Reading I -----\n");
+
   /* loop for input */
   while (STOP==FALSE) {       /* loop for input */
     res = read(fd,&byte,1);   /* returns after 1 char has been input */
@@ -316,6 +320,8 @@ int read_I(int fd, unsigned char *package_message) {
       continue;
 
     current_state_I = determineState_I(byte, current_state_I);
+
+    printState_I(current_state_I);
 
     if (current_state_I == C_RCV_I) {
       if (byte >> 6 == linkLayer.sequenceNumber)
