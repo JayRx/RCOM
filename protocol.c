@@ -177,7 +177,7 @@ void atende() {
     }
   } else if (current_alarm_ID == ALARM_I) {
     if (current_state_RR_REJ != STOP_RR_REJ) {
-      printf("Error! Rewriting...\n");
+      printf("\nError! Rewriting...\n");
       write_I(al.fileDescriptor, linkLayer.sequenceNumber, package_message, package_message_size);
     } else {
       alarm_no = 0;
@@ -486,8 +486,6 @@ int checkBCC(unsigned char *data, int length) {
   if (BCC2 == data[length - 1]) {
     return TRUE;
   } else {
-    printf("BCC2 doesn't check\nBCC2: %x, real BCC2: %x\n", data[length - 1],
-           BCC2);
     return FALSE;
   }
 }
