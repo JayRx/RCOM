@@ -323,19 +323,14 @@ int checkUsage(int argc, char** argv, int* status)  {
 
   FILE *file;
   file = fopen(argv[1], "r");
+
   if (file == NULL) {
-    perror("Error when opening port");
+    printf ("Error when opening port\n");
     return -1;
   } else {
     fclose(file);
   }
 
-	if ((strcmp("/dev/ttyS10", argv[1])!=0) &&
-  	    (strcmp("/dev/ttyS11", argv[1])!=0) &&
-		(strcmp("/dev/ttyS0", argv[1]) != 0)) {
-	  	printUsage();
-      	return -1;
-    }
 
 
 	if (strcmp("writer", argv[2])==0) {
