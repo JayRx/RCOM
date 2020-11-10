@@ -316,10 +316,19 @@ int setDisconnection(char* port, int status) {
 }
 
 int checkUsage(int argc, char** argv, int* status)  {
-	if (argc < 3) {
+  if (argc < 3) {
 		printUsage();
 		return -1;
 	}
+
+  FILE *file;
+  file = fopen(argv[1], "r");
+  if (file == NULL) {
+    perror("Error when opening port");
+    return -1;
+  } else {
+    fclose(file);
+  }
 
 	if ((strcmp("/dev/ttyS10", argv[1])!=0) &&
   	    (strcmp("/dev/ttyS11", argv[1])!=0) &&
