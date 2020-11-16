@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "state_machine.h"
 #include "protocol.h"
@@ -31,6 +32,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  clock_t begin = clock();
+
   if (setConnection(argv[1], status) != 0) {
     printf("Error when connecting!\n");
     return -1;
@@ -51,6 +54,11 @@ int main(int argc, char** argv) {
   }
 
   setDisconnection(argv[1], status);
+
+  clock_t end = clock();
+  double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+
+  printf("\n\nExecution Time: %lf\n\n", time_spent);
 
   free(message);
   free(data_package);
