@@ -1,5 +1,7 @@
 #define TRANSMITTER 0
 #define RECEIVER 1
+#define ERROR_PROBABILITY 0
+#define DELAY_TIME 0
 
 struct linkLayer {
   char port[20]; // Dispositivo /dev/ttySx, x = 0, 1
