@@ -45,6 +45,8 @@ int main(int argc, char** argv) {
   destuffedFrame = (unsigned char*) malloc(6 + 4 + al.fragmentSize + 1);
   dbcc = (unsigned char *) malloc((6 + 4 + al.fragmentSize) * 2 + 1);
 
+  srand(time(NULL));
+
   if (al.status == TRANSMITTER) {
     sendData();
   } else if (al.status == RECEIVER) {
@@ -52,8 +54,6 @@ int main(int argc, char** argv) {
   }
 
   setDisconnection(argv[1], status);
-
-  printf("\n\nExecution Time: %lf\n\n", time_spent);
 
   free(message);
   free(data_package);
