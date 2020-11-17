@@ -23,6 +23,8 @@ unsigned char *stuffedFrame;
 unsigned char *destuffedFrame;
 unsigned char *dbcc;
 
+unsigned int error_no;
+
 int main(int argc, char** argv) {
 
   int status;
@@ -46,6 +48,7 @@ int main(int argc, char** argv) {
   dbcc = (unsigned char *) malloc((6 + 4 + al.fragmentSize) * 2 + 1);
 
   srand(time(NULL));
+  error_no = 0;
 
   if (al.status == TRANSMITTER) {
     sendData();
@@ -54,6 +57,8 @@ int main(int argc, char** argv) {
   }
 
   setDisconnection(argv[1], status);
+
+  printf("\nErrors: %d\n", error_no);
 
   free(message);
   free(data_package);

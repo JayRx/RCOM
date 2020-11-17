@@ -34,6 +34,7 @@ extern unsigned char *messageIO;
 extern unsigned char *stuffedFrame;
 extern unsigned char *destuffedFrame;
 extern unsigned char *dbcc;
+extern unsigned int error_no;
 
 int llopen(char port[20], int status) {
   int fd;
@@ -343,8 +344,10 @@ int read_I(int fd, unsigned char *package_message) {
 
   random = rand() % 100 + 1;
 
-  if (random <= ERROR_PROBABILITY)
-  dbcc[length - 1] += 7;
+  if (random <= ERROR_PROBABILITY) {
+    dbcc[length - 1] += 7;
+    error_no++;
+  }
 
   sleep(DELAY_TIME / 1000.0);
 
